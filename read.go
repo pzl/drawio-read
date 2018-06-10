@@ -19,9 +19,11 @@ import (
 	"net/url"
 )
 
-const pngHead = "\x89PNG\r\n\x1a\n"
-const ztxtHead = "zTXt"
-const endHead = "IEND"
+const (
+	pngHead = "\x89PNG\r\n\x1a\n"
+	ztxtHead = "zTXt"
+	endHead = "IEND"
+)
 
 type Chunk struct {
 	Length uint32
@@ -53,7 +55,7 @@ func deflate(data []byte) (string, error) {
 	return string(uncompressed), err
 }
 
-func (c Chunk) parse_ztxt() ZtChunk {
+func parseZTXT(c Chunk) ZtChunk {
 	var z ZtChunk
 	nul_pos := bytes.Index(c.Data, []byte{0})
 	z.Name = string(c.Data[:nul_pos])
@@ -65,7 +67,7 @@ func (c Chunk) parse_ztxt() ZtChunk {
 	return z
 }
 
-func valid_png(f *os.File) (bool, error) {
+func validPNG(f io.Reader) (bool, error) {
 	head := make([]byte, 8)
 	_, err := io.ReadFull(f, head)
 	if err != nil {
@@ -74,7 +76,7 @@ func valid_png(f *os.File) (bool, error) {
 	return string(head) == pngHead, nil
 }
 
-func read_section(f *os.File) Chunk {
+func readSection(f io.Reader) Chunk {
 	var c Chunk
 	buf4 := make([]byte, 4)
 
@@ -104,7 +106,7 @@ func main() {
 	check(err)
 	defer file.Close()
 
-	valid, err := valid_png(file)
+	valid, err := validPNG(file)
 	check(err)
 	if !valid {
 		fmt.Println("Not valid PNG file")
@@ -112,9 +114,9 @@ func main() {
 	}
 
 	for {
-		chunk := read_section(file)
+		chunk := readSection(file)
 		if chunk.Type == ztxtHead {
-			z := chunk.parse_ztxt()
+			z := parseZTXT(chunk)
 			if z.Name == "mxGraphModel" {
 				data := z.Text
 				data, _ = url.QueryUnescape(data)
