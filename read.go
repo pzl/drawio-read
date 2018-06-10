@@ -20,9 +20,9 @@ import (
 )
 
 const (
-	pngHead = "\x89PNG\r\n\x1a\n"
+	pngHead  = "\x89PNG\r\n\x1a\n"
 	ztxtHead = "zTXt"
-	endHead = "IEND"
+	endHead  = "IEND"
 )
 
 type Chunk struct {
@@ -40,7 +40,6 @@ type ZtChunk struct {
 type MXFile struct {
 	Diagram string `xml:"diagram"`
 }
-
 
 func (c *Chunk) readSection(f io.Reader) {
 	buf4 := make([]byte, 4)
@@ -93,8 +92,6 @@ func validPNG(f io.Reader) (bool, error) {
 	}
 	return string(head) == pngHead, nil
 }
-
-
 
 func main() {
 	if len(os.Args) < 2 {
