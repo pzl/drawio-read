@@ -41,6 +41,24 @@ type MXFile struct {
 	Diagram string `xml:"diagram"`
 }
 
+
+func (c *Chunk) readSection(f io.Reader) {
+	buf4 := make([]byte, 4)
+
+	io.ReadFull(f, buf4)
+	c.Length = binary.BigEndian.Uint32(buf4)
+
+	io.ReadFull(f, buf4)
+	c.Type = string(buf4)
+
+	databuf := make([]byte, c.Length)
+	io.ReadFull(f, databuf)
+	c.Data = databuf
+
+	io.ReadFull(f, buf4)
+	c.Crc32 = buf4
+}
+
 func check(e error) {
 	if e != nil {
 		panic(e)
@@ -55,7 +73,7 @@ func deflate(data []byte) (string, error) {
 	return string(uncompressed), err
 }
 
-func parseZTXT(c Chunk) ZtChunk {
+func parseZTXT(c *Chunk) ZtChunk {
 	var z ZtChunk
 	nul_pos := bytes.Index(c.Data, []byte{0})
 	z.Name = string(c.Data[:nul_pos])
@@ -76,25 +94,7 @@ func validPNG(f io.Reader) (bool, error) {
 	return string(head) == pngHead, nil
 }
 
-func readSection(f io.Reader) Chunk {
-	var c Chunk
-	buf4 := make([]byte, 4)
 
-	io.ReadFull(f, buf4)
-	c.Length = binary.BigEndian.Uint32(buf4)
-
-	io.ReadFull(f, buf4)
-	c.Type = string(buf4)
-
-	databuf := make([]byte, c.Length)
-	io.ReadFull(f, databuf)
-	c.Data = databuf
-
-	io.ReadFull(f, buf4)
-	c.Crc32 = buf4
-
-	return c
-}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -113,8 +113,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	for {
-		chunk := readSection(file)
+	for chunk := new(Chunk); chunk.Type != endHead; chunk.readSection(file) {
 		if chunk.Type == ztxtHead {
 			z := parseZTXT(chunk)
 			if z.Name == "mxGraphModel" {
@@ -131,9 +130,6 @@ func main() {
 				fmt.Println(final)
 				os.Exit(0)
 			}
-			break
-		} else if chunk.Type == endHead {
-			fmt.Println("reached the end")
 			break
 		}
 	}
